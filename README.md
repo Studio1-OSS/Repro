@@ -249,7 +249,7 @@ A sandbox check needs a test command, or a start command and port; with both, th
 | Misaligned product cards | saucedemo.com (`visual_user`) | ✓ layout findings at 390 and 768 px |
 | Control: "I can't add a todo" (it works) | TodoMVC | ✓ "not reproduced" |
 
-Results: [`bench/results.md`](bench/results.md) and [`bench/real-results.md`](bench/real-results.md). A report averages about 4,700 input tokens, a reproduce run about 12,800 (3 steps), and a fix with its sandbox check about 26,000 (37 s on average). At MiniMax's list price ($0.15 / $0.60 per 1M tokens) that's well under a cent each; check current pricing on [Token Factory](https://tokenfactory.nebius.com).
+Results: [`bench/results.md`](bench/results.md) and [`bench/real-results.md`](bench/real-results.md). A report averages about 4,700 input tokens, a reproduce run about 12,800 (3 steps), and a fix with its sandbox check about 26,000 (37 s on average). At [Token Factory](https://tokenfactory.nebius.com)'s price for MiniMax-M3.1-Flash ($0.15 per 1M input tokens, $0.015 cached, $0.60 output; checked 2026-10-23) that's well under a cent each. Token Factory caches repeated prompt prefixes automatically, so agent and fix turns cost less than these totals suggest.
 
 **What the benchmarks changed.** Each miss became a product fix, not a prompt tweak for the test:
 
