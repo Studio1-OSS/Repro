@@ -6,7 +6,7 @@
 
 ### Record the bug once. Repro reproduces it, then fixes it.
 
-**Open-source bug capture for the browser, on an open-model stack. Record a bug with its console, network and clicks; [MiniMax-M3.1-Flash](https://tokenfactory.nebius.com/?modals=endpoint-details&model-id=MiniMaxAI/MiniMax-M3.1-Flash) writes the report, reproduces the bug in your own signed-in browser, proposes a fix in your code and checks it in a sandbox before you apply it.**
+**Open-source bug capture for the browser, on an open-model stack. Record a bug with its console, network and clicks; [MiniMax-M3.1-Flash](https://www.minimax.io/blog/minimax-m31f) writes the report, reproduces the bug in your own signed-in browser, proposes a fix in your code and checks it in a sandbox before you apply it.**
 
 Built with [Nebius Token Factory](https://dub.sh/aistudio) on **[MiniMax-M3.1-Flash](https://tokenfactory.nebius.com/?modals=endpoint-details&model-id=MiniMaxAI/MiniMax-M3.1-Flash)** · [Get started](#get-started) · [Overview](#overview) · [Architecture](#architecture) · [Benchmark](#benchmark) · [Features](#features) · [Data and privacy](#data-and-privacy)
 
