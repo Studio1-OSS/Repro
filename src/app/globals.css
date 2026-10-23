@@ -1,0 +1,114 @@
+@import "tailwindcss";
+
+/* Design tokens: a bright product showroom. One action blue, near-black ink, flat surfaces, pill buttons, square tiles. */
+@theme {
+  --font-sans: var(--font-open-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+
+  --color-canvas: #ffffff;
+  --color-canvas-soft: #f7f9fa;
+  --color-fog: #f5f5f5;
+  --color-announce: #fafafa;
+  --color-ink: #262626;
+  --color-ink-2: #595959;
+  --color-ink-3: #8c8c8c;
+  --color-hairline: #f0f0f0;
+  --color-divider: #e8e8e8;
+  --color-card-border: #d9d9d9;
+  --color-primary: #0070d5;
+  --color-primary-strong: #0060ef;
+  --color-primary-tint: #deeafd;
+  --color-link: #1890ff;
+  --color-tier: #be4e04;
+  --color-error: #f5222d;
+  --color-warn: #fa8c16;
+  --color-ok: #2f9e44;
+  --color-footer: #272727;
+  --color-footer-pill: #383838;
+  --color-footer-link: #b3b3b3;
+  --color-media: #0b0b0b;
+
+  --radius-sm: 8px;
+  --radius-pill: 9999px;
+
+  --shadow-float: 0 8px 16px rgba(0, 0, 0, 0.1);
+
+  --text-display-xl: 48px;
+  --text-display-xl--line-height: 1.08;
+  --text-display-xl--letter-spacing: -0.03em;
+  --text-display: 40px;
+  --text-display--line-height: 1.2;
+  --text-display--letter-spacing: -0.03em;
+  --text-heading: 32px;
+  --text-heading--line-height: 1.125;
+  --text-heading--letter-spacing: -0.03em;
+  --text-title: 24px;
+  --text-title--line-height: 1.17;
+  --text-title--letter-spacing: -0.03em;
+  --text-subhead: 20px;
+  --text-subhead--line-height: 1.2;
+  --text-subhead--letter-spacing: -0.03em;
+  --text-body: 16px;
+  --text-body--line-height: 1.5;
+  --text-body--letter-spacing: -0.02em;
+  --text-ui: 14px;
+  --text-ui--line-height: 1.43;
+  --text-ui--letter-spacing: -0.02em;
+  --text-caption: 12px;
+  --text-caption--line-height: 1.33;
+  --text-caption--letter-spacing: -0.02em;
+}
+
+@layer base {
+  html {
+    color: var(--color-ink);
+    background: var(--color-canvas);
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    letter-spacing: -0.02em;
+  }
+  ::selection {
+    background: var(--color-primary-tint);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+}
+
+@utility container-page {
+  margin-inline: auto;
+  width: 100%;
+  max-width: 1200px;
+  padding-inline: 16px;
+  @media (width >= 768px) {
+    padding-inline: 24px;
+  }
+}
+
+@utility eyebrow {
+  font-size: var(--text-caption);
+  line-height: var(--text-caption--line-height);
+  color: var(--color-tier);
+}
+
+/* rrweb replay: the replayed page's iframe fills its stage; the mouse cursor uses the action blue. */
+.repro-replay .replayer-wrapper {
+  position: relative;
+}
+.repro-replay iframe {
+  border: 0;
+  pointer-events: auto;
+}
+.repro-replay .replayer-mouse {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  background: rgb(0 112 213 / 0.35);
+  border: 2px solid #0070d5;
+  transition: left 0.05s linear, top 0.05s linear;
+}

@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Open Sans", ui-sans-serif, system-ui, sans-serif;
+  --color-ink: #262626;
+  --color-ink-2: #595959;
+  --color-ink-3: #8c8c8c;
+  --color-fog: #f5f5f5;
+  --color-soft: #f7f9fa;
+  --color-line: #e8e8e8;
+  --color-primary: #0070d5;
+  --color-rec: #f5222d;
+  --color-tier: #be4e04;
+}
+
+body {
+  width: 340px;
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+  letter-spacing: -0.02em;
+}

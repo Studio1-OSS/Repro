@@ -1,0 +1,13 @@
+{
+  "extends": "./.wxt/tsconfig.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUncheckedIndexedAccess": false,
+    "allowJs": true,
+    "types": ["chrome"],
+    "paths": { "@shared/*": ["../src/shared/*"] }
+  },
+  "include": [".wxt/wxt.d.ts", "entrypoints", "lib", "wxt.config.ts", "../src/shared"],
+  "exclude": ["../src/shared/**/*.test.ts"]
+}

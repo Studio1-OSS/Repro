@@ -1,0 +1,18 @@
+// Renders the toolbar icons (extension/public/icon/*.png) from the logo mark.
+//   pnpm tsx scripts/extension-icons.mts
+import { mkdirSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { launchBrowser } from "../bench/driver.ts";
+
+const out = fileURLToPath(new URL("../extension/public/icon/", import.meta.url));
+mkdirSync(out, { recursive: true });
+const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect x="1" y="1" width="30" height="30" rx="8" fill="#0070d5"/><path d="M23.9 10.6A9.2 9.2 0 1 0 25.2 16" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round"/><path d="M25.3 6.4v4.9h-4.9" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.2 10.4v10.8l2.7-2.5 1.9 4 1.9-.9-1.9-3.9h3.7z" fill="#fff"/></svg>`;
+const browser = await launchBrowser();
+for (const size of [16, 32, 48, 128]) {
+  const page = await browser.newPage({ viewport: { width: size, height: size } });
+  await page.setContent(`<style>html,body{margin:0;background:transparent}</style>${svg.replace("<svg ", `<svg width="${size}" height="${size}" `)}`);
+  await page.screenshot({ path: `${out}${size}.png`, omitBackground: true });
+  await page.close();
+}
+await browser.close();
+console.log(`Icons saved to ${out}`);

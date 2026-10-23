@@ -1,0 +1,735 @@
+{
+  "summary": {
+    "model": "MiniMaxAI/MiniMax-M3.1-Flash",
+    "date": "2026-10-23",
+    "bugs": 5,
+    "responsive": 1,
+    "controls": 1,
+    "reportComplete": 6,
+    "causeFound": 6,
+    "analysed": 6,
+    "securityPlanted": 1,
+    "securityFound": 1,
+    "reproduced": 5,
+    "controlsCorrect": 1,
+    "fixesVerified": 6,
+    "fixAttempts": 6,
+    "avgReportSeconds": 12.170666666666667,
+    "avgReportTokens": {
+      "input": 4659.833333333333,
+      "output": 742.3333333333334
+    },
+    "avgAgentSteps": 3,
+    "avgAgentSeconds": 6.710333333333334,
+    "avgAgentTokens": {
+      "input": 12822.333333333334,
+      "output": 247.5
+    },
+    "avgFixSeconds": 37.386,
+    "avgFixTokens": {
+      "input": 26034.166666666668,
+      "output": 2677
+    }
+  },
+  "results": [
+    {
+      "id": "coupon-nan",
+      "title": "Coupon makes the total NaN",
+      "kind": "bug",
+      "analysis": {
+        "ms": 13765,
+        "tokens": {
+          "input": 5343,
+          "output": 628
+        },
+        "stepsOk": true,
+        "causeOk": true,
+        "securityOk": true,
+        "report": {
+          "title": "Checkout: applying SAVE10 coupon renders Discount -$NaN and Total $NaN",
+          "summary": "On http://localhost:4401/checkout, applying the valid coupon code SAVE10 to the checkout causes the Discount and Total rows to display NaN instead of the calculated amounts.",
+          "severity": "high",
+          "steps": [
+            {
+              "t": 0.1,
+              "action": "Click the Coupon input (placeholder \"Enter code\")."
+            },
+            {
+              "t": 1.5,
+              "action": "Type the coupon code SAVE10 into the Coupon input."
+            },
+            {
+              "t": 1.6,
+              "action": "Click the Apply coupon button."
+            },
+            {
+              "t": 1.6,
+              "action": "Observe the Discount and Total rows: Discount shows -$NaN and Total shows $NaN (bug reproduced)."
+            }
+          ],
+          "expected": "With cart subtotal $144.00 and a valid 10% SAVE10 coupon, Discount should show -$14.40 and Total should show $129.60.",
+          "actual": "Discount shows -$NaN and Total shows $NaN; the line-item prices remain $120.00 and $24.00.",
+          "suspectedCause": "The coupon API returns a successful response {\"code\":\"SAVE10\",\"valid\":true,\"percent_off\":10}, but checkout.js:12 reads `.rate` from an undefined object (TypeError: Cannot read properties of undefined (reading 'rate') at HTMLButtonElement.<anonymous> (http://localhost:4401/static/js/checkout.js:12:39)). The apply-coupon handler likely expects a coupon object with a `rate` property, while the API field is `percent_off` (and possibly returns the coupon payload nested or under a different key), so the discount rate is undefined and propagates into the formatted Discount and Total as NaN. Check the response parsing and the property used for the discount rate in checkout.js around line 12, and guard against a missing/non-numeric rate before computing the total.",
+          "evidence": [
+            "Console error at 1.6s: \"TypeError: Cannot read properties of undefined (reading 'rate')\" at http://localhost:4401/static/js/checkout.js:12:39",
+            "Console log at 1.6s: \"coupon response {\\\"code\\\":\\\"SAVE10\\\",\\\"valid\\\":true,\\\"percent_off\\\":10}\"",
+            "Network at 1.6s: GET http://localhost:4401/api/coupons/SAVE10 -> 200, response {\\\"code\\\":\\\"SAVE10\\\",\\\"valid\\\":true,\\\"percent_off\\\":10}"
+          ],
+          "security": [
+            {
+              "issue": "A Stripe live secret key was exposed in a GET request URL",
+              "severity": "high",
+              "evidence": "GET http://localhost:4401/api/coupons/SAVE10?token=[redacted stripe-live-key] (1.6s) — the value was actually sent by the page and appears in URL query string, where it is retained in browser history, server/proxy access logs, and Referer headers."
+            }
+          ],
+          "layout": []
+        }
+      },
+      "agent": {
+        "ms": 6084,
+        "tokens": {
+          "input": 17925,
+          "output": 195
+        },
+        "steps": 4,
+        "reproducedClaim": true,
+        "verifiedOnPage": true,
+        "success": true,
+        "evidence": "After typing SAVE10 and clicking Apply coupon, the Discount row rendered \"-$NaN\" and Total rendered \"$NaN\" (instead of -$14.40 and $129.60). Line items remained $120.00 and $24.00. Console also logged: TypeError: Cannot read properties of undefined (reading 'rate').",
+        "trace": [
+          "{\"type\":\"click\",\"id\":6}",
+          "{\"type\":\"type\",\"id\":6,\"text\":\"SAVE10\"}",
+          "{\"type\":\"click\",\"id\":7}",
+          "{\"type\":\"done\",\"reproduced\":true,\"evidence\":\"After typing SAVE10 and clicking Apply coupon, the Discount row rendered \\\"-$NaN\\\" and Total rendered \\\"$NaN\\\" (instead of -$14.40 and $129.60). Line items remained $120.00 and $24.00. Console also logged: TypeError: Cannot read properties of undefined (reading 'rate').\"}"
+        ]
+      },
+      "fix": {
+        "ms": 18966,
+        "tokens": {
+          "input": 18977,
+          "output": 1167
+        },
+        "files": [
+          "public/js/lib/pricing.js",
+          "public/js/checkout.js"
+        ],
+        "wholeRepo": true,
+        "diff": "===================================================================\n--- a/public/js/checkout.js\n+++ b/public/js/checkout.js\n@@ -9,7 +9,10 @@\n   const res = await fetch(`/api/coupons/${encodeURIComponent(code)}?token=sk_live_51HbenchA7xQ2pLm9`, { headers: { \"x-client\": \"web\" } });\n   const coupon = await res.json();\n   console.log(\"coupon response\", coupon);\n-  if (!coupon.discount) console.error(new TypeError(\"Cannot read properties of undefined (reading 'rate')\"));\n+  if (!coupon.valid || !Number.isFinite(Number(coupon.percent_off))) {\n+    $(\"msg\").textContent = \"Invalid coupon code.\";\n+    return;\n+  }\n   const { discount, total } = applyCoupon(SUBTOTAL, coupon);\n   $(\"disc\").textContent = `-${money(discount)}`;\n   $(\"total\").textContent = money(total);\n\n===================================================================\n--- a/public/js/lib/pricing.js\n+++ b/public/js/lib/pricing.js\n@@ -2,7 +2,9 @@\n \n /** Applies a coupon from GET /api/coupons/:code to a subtotal. */\n export function applyCoupon(subtotal, coupon) {\n-  const discount = (subtotal * coupon.discount?.rate) / 100;\n+  const rate = Number(coupon.percent_off);\n+  if (!Number.isFinite(rate)) return { discount: 0, total: subtotal };\n+  const discount = (subtotal * rate) / 100;\n   return { discount, total: subtotal - discount };\n }\n \n",
+        "explanation": "The coupon API returns the percentage in `percent_off`, but `applyCoupon` read `coupon.discount.rate`, which is undefined, so the multiplication produced NaN. The pricing helper now reads/validates `percent_off`, and the checkout handler rejects invalid responses instead of logging a synthetic TypeError, so the discount and total are computed from the real API field.",
+        "verified": true,
+        "summary": "tests pass; agent can no longer reproduce the bug",
+        "sandbox": {
+          "provider": "docker",
+          "before": {},
+          "after": {
+            "tests": {
+              "exitCode": 0,
+              "output": "TAP version 13\n# Subtest: a 10% coupon takes 10% off the subtotal\nok 1 - a 10% coupon takes 10% off the subtotal\n  ---\n  duration_ms: 27.068625\n  type: 'test'\n  ...\n1..1\n# tests 1\n# suites 0\n# pass 1\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 109.966\n",
+              "durationMs": 348,
+              "timedOut": false
+            },
+            "agent": {
+              "reproduced": false,
+              "evidence": "Applied SAVE10 coupon. Discount now shows -$14.40 and Total shows $129.60, with line items $120.00 and $24.00. No NaN values; bug is fixed.",
+              "steps": 3,
+              "trace": [
+                "{\"type\":\"type\",\"id\":6,\"text\":\"SAVE10\"}",
+                "{\"type\":\"click\",\"id\":7}",
+                "{\"type\":\"done\",\"reproduced\":false,\"evidence\":\"Applied SAVE10 coupon. Discount now shows -$14.40 and Total shows $129.60, with line items $120.00 and $24.00. No NaN values; bug is fixed.\"}"
+              ],
+              "tokens": {
+                "input": 12928,
+                "output": 142
+              }
+            }
+          },
+          "verified": true,
+          "summary": "tests pass; agent can no longer reproduce the bug"
+        }
+      }
+    },
+    {
+      "id": "profile-silent-500",
+      "title": "Profile name doesn't save",
+      "kind": "bug",
+      "analysis": {
+        "ms": 11709,
+        "tokens": {
+          "input": 5203,
+          "output": 649
+        },
+        "stepsOk": true,
+        "causeOk": true,
+        "securityOk": null,
+        "report": {
+          "title": "Profile display name fails to save on /profile (POST /api/profile returns 500: missing profiles.display_name column)",
+          "summary": "On http://localhost:4401/profile, editing the Display name field to \"Priya S.\" and clicking \"Save changes\" returns a server error and the change is not persisted. The API response indicates the profiles table is missing the display_name column.",
+          "severity": "high",
+          "steps": [
+            {
+              "t": 0,
+              "action": "The /profile page loads with the Display name field containing \"Priya Sharma\"."
+            },
+            {
+              "t": 0.8,
+              "action": "Replace the Display name value with \"Priya S.\" (input[text]#name)."
+            },
+            {
+              "t": 0.8,
+              "action": "Click \"Save changes\" (button#save)."
+            },
+            {
+              "t": 0.8,
+              "action": "Network: POST http://localhost:4401/api/profile → 500, request body {\"displayName\":\"Priya S.\"}; response: {\"error\":\"column \\\"display_name\\\" of relation \\\"profiles\\\" does not exist\"}."
+            },
+            {
+              "t": 1.5,
+              "action": "A toast appears reading \"Profile saved ✓\" even though the request failed with HTTP 500."
+            },
+            {
+              "t": 1.6,
+              "action": "The page is reloaded/navigated to http://localhost:4401/profile."
+            },
+            {
+              "t": 2.3,
+              "action": "The Display name field shows \"Priya Sharma\" again; the edited value \"Priya S.\" was not saved."
+            }
+          ],
+          "expected": "Saving the edited display name \"Priya S.\" succeeds (2xx), the name persists across reload as \"Priya S.\", and a success toast is only shown when the request actually succeeds.",
+          "actual": "The save request fails with HTTP 500: {\"error\":\"column \\\"display_name\\\" of relation \\\"profiles\\\" does not exist\"}. The UI nevertheless displays a \"Profile saved ✓\" toast, and after reloading /profile the Display name field shows the original \"Priya Sharma\" instead of \"Priya S.\".",
+          "suspectedCause": "The profiles table (or the migration/schema applied to it) has no display_name column, so the UPDATE/INSERT in the POST /api/profile handler fails at the database layer. Check the profiles table definition/migrations for a display_name column (and ensure the migration is applied to the database being used by the API), plus the field/column mapping in the /api/profile route. Secondary issue: the client shows the success toast without checking the response status, so a 500 is reported as \"Profile saved ✓\".",
+          "evidence": [
+            "[0.8s] POST http://localhost:4401/api/profile → 500 11ms",
+            "request body: {\"displayName\":\"Priya S.\"}",
+            "response: {\"error\":\"column \\\"display_name\\\" of relation \\\"profiles\\\" does not exist\"}",
+            "Frame at 1.5s shows toast: \"Profile saved ✓\"",
+            "Frame at 2.3s shows Display name reverted to \"Priya Sharma\""
+          ],
+          "security": [],
+          "layout": []
+        }
+      },
+      "agent": {
+        "ms": 7982,
+        "tokens": {
+          "input": 18217,
+          "output": 277
+        },
+        "steps": 4,
+        "reproducedClaim": true,
+        "verifiedOnPage": true,
+        "success": true,
+        "evidence": "Set Display name to \"Priya S.\" and clicked \"Save changes\". The UI immediately displayed a \"Profile saved ✓\" toast. After navigating back to /profile, the Display name field again showed \"Priya Sharma\", so the edited value was not persisted while a success toast was shown (matching the reported failed-save / false-success symptom).",
+        "trace": [
+          "{\"type\":\"type\",\"id\":6,\"text\":\"Priya S.\",\"submit\":false}",
+          "{\"type\":\"click\",\"id\":7}",
+          "{\"type\":\"navigate\",\"url\":\"http://localhost:4401/profile\"}",
+          "{\"type\":\"done\",\"reproduced\":true,\"evidence\":\"Set Display name to \\\"Priya S.\\\" and clicked \\\"Save changes\\\". The UI immediately displayed a \\\"Profile saved ✓\\\" toast. After navigating back to /profile, the Display name field again showed \\\"Priya Sharma\\\", so the edited value was not persisted while a success toast was shown (matching the reported failed-save / false-success symptom).\"}"
+        ]
+      },
+      "fix": {
+        "ms": 19014,
+        "tokens": {
+          "input": 29896,
+          "output": 942
+        },
+        "files": [
+          "server.mjs",
+          "public/js/profile.js"
+        ],
+        "wholeRepo": true,
+        "diff": "===================================================================\n--- a/public/js/profile.js\n+++ b/public/js/profile.js\n@@ -1,6 +1,6 @@\n const $ = (id) => document.getElementById(id);\n \n $(\"save\").addEventListener(\"click\", async () => {\n-  await fetch(\"/api/profile\", { method: \"POST\", headers: { \"content-type\": \"application/json\" }, body: JSON.stringify({ displayName: $(\"name\").value }) });\n-  toast(\"Profile saved ✓\");\n+  const res = await fetch(\"/api/profile\", { method: \"POST\", headers: { \"content-type\": \"application/json\" }, body: JSON.stringify({ displayName: $(\"name\").value }) });\n+  toast(res.ok ? \"Profile saved ✓\" : \"Unable to save profile\");\n });\n\n===================================================================\n--- a/server.mjs\n+++ b/server.mjs\n@@ -109,7 +109,7 @@\n       if (req.method === \"POST\") {\n         const body = JSON.parse((await readBody(req)) || \"{}\");\n         try {\n-          updateProfile(\"display_name\", String(body.displayName ?? \"\").slice(0, 80));\n+          updateProfile(\"name\", String(body.displayName ?? \"\").slice(0, 80));\n         } catch (e) {\n           return send(res, 500, JSON.stringify({ error: e.message }), \"application/json\");\n         }\n",
+        "explanation": "The profile row exposes its display name as the `name` column, but the API updated a nonexistent `display_name` column, causing every save to fail. The route now updates `name`; the client also checks `res.ok` so the success toast is only shown for a successful response, while failures produce an error toast.",
+        "verified": true,
+        "summary": "tests pass; agent can no longer reproduce the bug",
+        "sandbox": {
+          "provider": "docker",
+          "before": {},
+          "after": {
+            "tests": {
+              "exitCode": 0,
+              "output": "TAP version 13\n# Subtest: saving the profile stores the new display name\nok 1 - saving the profile stores the new display name\n  ---\n  duration_ms: 20.375333\n  type: 'test'\n  ...\n1..1\n# tests 1\n# suites 0\n# pass 1\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 156.411833\n",
+              "durationMs": 360,
+              "timedOut": false
+            },
+            "agent": {
+              "reproduced": false,
+              "evidence": "Edited Display name to \"Priya S.\", clicked Save changes, and the \"Profile saved ✓\" toast appeared. After navigating/reloading /profile, the Display name field still shows \"Priya S.\" (persisted), not the original \"Priya Sharma\". No console errors were reported. The reported bug does not occur.",
+              "steps": 5,
+              "trace": [
+                "{\"type\":\"type\",\"id\":6,\"text\":\"Priya S.\"}",
+                "{\"type\":\"click\",\"id\":7}",
+                "{\"type\":\"navigate\",\"url\":\"http://localhost:4401/profile\"}",
+                "{\"type\":\"navigate\",\"url\":\"http://127.0.0.1:53653/profile\"}",
+                "{\"type\":\"done\",\"reproduced\":false,\"evidence\":\"Edited Display name to \\\"Priya S.\\\", clicked Save changes, and the \\\"Profile saved ✓\\\" toast appeared. After navigating/reloading /profile, the Display name field still shows \\\"Priya S.\\\" (persisted), not the original \\\"Priya Sharma\\\". No console errors were reported. The reported bug does not occur.\"}"
+              ],
+              "tokens": {
+                "input": 23908,
+                "output": 294
+              }
+            }
+          },
+          "verified": true,
+          "summary": "tests pass; agent can no longer reproduce the bug"
+        }
+      }
+    },
+    {
+      "id": "orders-dead-link",
+      "title": "Orders link goes nowhere",
+      "kind": "bug",
+      "analysis": {
+        "ms": 6453,
+        "tokens": {
+          "input": 3380,
+          "output": 462
+        },
+        "stepsOk": true,
+        "causeOk": true,
+        "securityOk": null,
+        "report": {
+          "title": "Header \"Orders\" link navigates to a 404 at /account/orders",
+          "summary": "From the checkout page, clicking the \"Orders\" link in the top navigation navigates to http://localhost:4401/account/orders, which renders the app's \"Page not found\" screen instead of an orders list. No console errors or network requests were captured, so the route likely is not registered by the client-side router or the link points to a stale path.",
+          "severity": "medium",
+          "steps": [
+            {
+              "t": 0,
+              "action": "Start on http://localhost:4401/checkout. The checkout page is shown with the header navigation containing \"Cart\", \"Checkout\", \"Profile\", \"Settings\", \"Orders\", and \"Sign out\"."
+            },
+            {
+              "t": 0.1,
+              "action": "Click the \"Orders\" link in the top header."
+            },
+            {
+              "t": 0.1,
+              "action": "The browser navigates to http://localhost:4401/account/orders."
+            },
+            {
+              "t": 0.8,
+              "action": "The page renders a \"Page not found\" card with the message \"We couldn't find /account/orders.\" instead of the orders list."
+            }
+          ],
+          "expected": "Clicking \"Orders\" opens the account orders page, showing the user's order history.",
+          "actual": "The \"Orders\" header link navigates to /account/orders and displays the app's 404 screen: \"Page not found — We couldn't find /account/orders.\"",
+          "suspectedCause": "The header link's href and the registered route do not match: the link points to /account/orders, but no route exists for that path (stale link target or a route registered under a different path such as /orders). Check the Orders nav link definition in the header component and the client-side router route table for the account orders page. Since there are no console or network entries, the failure is handled locally by the app's not-found route.",
+          "evidence": [
+            "Frame at 0.0s: checkout page with header nav containing \"Orders\"",
+            "Frame at 0.8s: heading \"Page not found\" and text \"We couldn't find /account/orders.\"",
+            "Console: (none)",
+            "Network: (none)"
+          ],
+          "security": [],
+          "layout": []
+        }
+      },
+      "agent": {
+        "ms": 4974,
+        "tokens": {
+          "input": 7826,
+          "output": 124
+        },
+        "steps": 2,
+        "reproducedClaim": true,
+        "verifiedOnPage": true,
+        "success": true,
+        "evidence": "Clicking the header \"Orders\" link navigated to http://localhost:4401/account/orders, where the page title became \"Not found · Acme Outfitters\" and the 404 card displayed \"Page not found\" with \"We couldn't find /account/orders.\" instead of an orders list.",
+        "trace": [
+          "{\"type\":\"click\",\"id\":4}",
+          "{\"type\":\"done\",\"reproduced\":true,\"evidence\":\"Clicking the header \\\"Orders\\\" link navigated to http://localhost:4401/account/orders, where the page title became \\\"Not found · Acme Outfitters\\\" and the 404 card displayed \\\"Page not found\\\" with \\\"We couldn't find /account/orders.\\\" instead of an orders list.\"}"
+        ]
+      },
+      "fix": {
+        "ms": 12016,
+        "tokens": {
+          "input": 19497,
+          "output": 625
+        },
+        "files": [
+          "server.mjs"
+        ],
+        "wholeRepo": true,
+        "diff": "===================================================================\n--- a/server.mjs\n+++ b/server.mjs\n@@ -23,7 +23,7 @@\n   [\"Checkout\", \"/checkout\"],\n   [\"Profile\", \"/profile\"],\n   [\"Settings\", \"/settings\"],\n-  [\"Orders\", \"/account/orders\"],\n+  [\"Orders\", \"/orders\"],\n ];\n \n const esc = (s) => String(s).replace(/[&<>\"]/g, (c) => ({ \"&\": \"&amp;\", \"<\": \"&lt;\", \">\": \"&gt;\", '\"': \"&quot;\" })[c]);\n",
+        "explanation": "The Orders navigation entry points to `/account/orders`, but the orders page is registered under `/orders` in the `pages` route table, so the server correctly renders its 404 for the stale path. Pointing the link at the registered route makes the header navigate to the existing orders list.",
+        "verified": true,
+        "summary": "tests pass; agent can no longer reproduce the bug",
+        "sandbox": {
+          "provider": "docker",
+          "before": {},
+          "after": {
+            "tests": {
+              "exitCode": 0,
+              "output": "TAP version 13\n# Subtest: every link in the header opens a page\nok 1 - every link in the header opens a page\n  ---\n  duration_ms: 31.722208\n  type: 'test'\n  ...\n1..1\n# tests 1\n# suites 0\n# pass 1\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 199.275917\n",
+              "durationMs": 467,
+              "timedOut": false
+            },
+            "agent": {
+              "reproduced": false,
+              "evidence": "Clicking the header \"Orders\" link navigated to /orders and rendered the \"Your orders\" list (#1042 Trail runners, #1039 Rain jacket). No 404 page appeared.",
+              "steps": 2,
+              "trace": [
+                "{\"type\":\"click\",\"id\":4}",
+                "{\"type\":\"done\",\"reproduced\":false,\"evidence\":\"Clicking the header \\\"Orders\\\" link navigated to /orders and rendered the \\\"Your orders\\\" list (#1042 Trail runners, #1039 Rain jacket). No 404 page appeared.\"}"
+              ],
+              "tokens": {
+                "input": 7927,
+                "output": 123
+              }
+            }
+          },
+          "verified": true,
+          "summary": "tests pass; agent can no longer reproduce the bug"
+        }
+      }
+    },
+    {
+      "id": "email-plus-rejected",
+      "title": "Can't save my alert email",
+      "kind": "bug",
+      "analysis": {
+        "ms": 11929,
+        "tokens": {
+          "input": 4752,
+          "output": 600
+        },
+        "stepsOk": true,
+        "causeOk": true,
+        "securityOk": null,
+        "report": {
+          "title": "Valid alert email rejected on Settings page — \"priya+alerts@example.com\" fails email validation",
+          "summary": "On the Settings page (http://localhost:4401/settings), entering the valid alert address `priya+alerts@example.com` and clicking **Save settings** does not save. The form shows the inline error \"Please enter a valid email address.\" and the browser console logs `email validation failed priya+alerts@example.com`. No network request is issued, so the failure occurs entirely in client-side validation before the save request is sent.",
+          "severity": "medium",
+          "steps": [
+            {
+              "t": 0,
+              "action": "On the Settings page, the **Notification settings** card shows the **Alert email** field pre-filled with `priya@example.com`."
+            },
+            {
+              "t": 0.8,
+              "action": "In the **Alert email** field, replaced the value with `priya+alerts@example.com`."
+            },
+            {
+              "t": 0.8,
+              "action": "Clicked the **Save settings** button."
+            },
+            {
+              "t": 1.5,
+              "action": "The form did not save: the field still shows `priya+alerts@example.com` and a red inline error appeared below it reading \"Please enter a valid email address.\" No success confirmation is shown."
+            }
+          ],
+          "expected": "Saving the valid email address `priya+alerts@example.com` succeeds — no validation error is displayed and the setting is persisted (a save request is sent).",
+          "actual": "Saving shows the red validation message \"Please enter a valid email address.\" for `priya+alerts@example.com`. The value is not saved and no network request is made.",
+          "suspectedCause": "Client-side email validation rejects the `+` sub-address tag (RFC 5322 allows `+` in the local part). The console warning `email validation failed priya+alerts@example.com` confirms the value is rejected by the client-side validator before any request is made (NETWORK: none). Check the email regex/validator used by the `Alert email` input on the Settings form — it likely lacks support for `+` (and possibly other valid local-part characters) in the local-part of the address, e.g. a pattern that only permits `[A-Za-z0-9._-]` before the `@`. Prefer browser-native constraint validation (`type=\"email\"` / `input.validity`) or a standards-compliant check rather than a custom regex. Also verify that the form's submit handler is not independently re-running the same faulty check.",
+          "evidence": [
+            "CONSOLE [0.8s] warn: email validation failed priya+alerts@example.com",
+            "NETWORK (0) — no requests were issued after clicking Save settings",
+            "Frame at t=1.5s: inline red error \"Please enter a valid email address.\" beneath the field containing `priya+alerts@example.com`"
+          ],
+          "security": [],
+          "layout": []
+        }
+      },
+      "agent": {
+        "ms": 5485,
+        "tokens": {
+          "input": 12777,
+          "output": 163
+        },
+        "steps": 3,
+        "reproducedClaim": true,
+        "verifiedOnPage": true,
+        "success": true,
+        "evidence": "Replaced Alert email with priya+alerts@example.com and clicked Save settings. The page displayed the red inline error \"Please enter a valid email address.\", the field retained the value, no success confirmation appeared, and the console logged \"email validation failed priya+alerts@example.com\".",
+        "trace": [
+          "{\"type\":\"type\",\"id\":6,\"text\":\"priya+alerts@example.com\"}",
+          "{\"type\":\"click\",\"id\":7}",
+          "{\"type\":\"done\",\"reproduced\":true,\"evidence\":\"Replaced Alert email with priya+alerts@example.com and clicked Save settings. The page displayed the red inline error \\\"Please enter a valid email address.\\\", the field retained the value, no success confirmation appeared, and the console logged \\\"email validation failed priya+alerts@example.com\\\".\"}"
+        ]
+      },
+      "fix": {
+        "ms": 106823,
+        "tokens": {
+          "input": 67585,
+          "output": 9630
+        },
+        "files": [
+          "public/js/lib/validate.js",
+          "public/js/settings.js",
+          "server.mjs"
+        ],
+        "wholeRepo": true,
+        "diff": "===================================================================\n--- a/public/js/lib/validate.js\n+++ b/public/js/lib/validate.js\n@@ -1,5 +1,7 @@\n // Form validation.\n \n+const EMAIL = /^[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z]{2,}$/i;\n+\n export function isValidEmail(value) {\n-  return /^[a-z0-9.]+@[a-z0-9-]+\\.[a-z]+$/i.test(value.trim());\n+  return EMAIL.test(value.trim());\n }\n\n===================================================================\n--- a/public/js/settings.js\n+++ b/public/js/settings.js\n@@ -2,13 +2,18 @@\n \n const $ = (id) => document.getElementById(id);\n \n-$(\"save\").addEventListener(\"click\", () => {\n-  const value = $(\"email\").value;\n+$(\"save\").addEventListener(\"click\", async () => {\n+  const value = $(\"email\").value.trim();\n   if (!isValidEmail(value)) {\n     $(\"err\").textContent = \"Please enter a valid email address.\";\n     console.warn(\"email validation failed\", value);\n     return;\n   }\n+  const res = await fetch(\"/api/settings\", { method: \"POST\", headers: { \"content-type\": \"application/json\" }, body: JSON.stringify({ email: value }) });\n+  if (!res.ok) {\n+    $(\"err\").textContent = \"Could not save settings. Please try again.\";\n+    return;\n+  }\n   $(\"err\").textContent = \"\";\n   toast(\"Settings saved ✓\");\n });\n\n===================================================================\n--- a/server.mjs\n+++ b/server.mjs\n@@ -4,6 +4,7 @@\n import { createServer } from \"node:http\";\n import { extname, join } from \"node:path\";\n import { fileURLToPath } from \"node:url\";\n+import { isValidEmail } from \"./public/js/lib/validate.js\";\n \n export const LOGIN = { email: \"demo@shop.test\", password: \"demo1234\" };\n const SESSION = \"sid=bench-session-7f3a\";\n@@ -45,7 +46,7 @@\n     ),\n   \"/profile\": () => layout(\"Profile\", `<h1>Profile</h1><label for=\"name\">Display name</label><input id=\"name\" value=\"${esc(profile.name)}\"><p><button id=\"save\">Save changes</button></p>`, \"profile\"),\n   \"/settings\": () =>\n-    layout(\"Settings\", `<h1>Notification settings</h1><label for=\"email\">Alert email</label><input id=\"email\" value=\"${esc(profile.email)}\"><p class=\"err\" id=\"err\"></p><p><button id=\"save\">Save settings</button></p>`, \"settings\"),\n+    layout(\"Settings\", `<h1>Notification settings</h1><label for=\"email\">Alert email</label><input id=\"email\" type=\"email\" value=\"${esc(profile.email)}\"><p class=\"err\" id=\"err\"></p><p><button id=\"save\">Save settings</button></p>`, \"settings\"),\n   \"/cart\": () =>\n     layout(\n       \"Cart\",\n@@ -117,6 +118,16 @@\n       }\n       return send(res, 200, JSON.stringify(profile), \"application/json\");\n     }\n+    if (url.pathname === \"/api/settings\") {\n+      if (req.method === \"POST\") {\n+        const body = JSON.parse((await readBody(req)) || \"{}\");\n+        const email = String(body.email ?? \"\").trim();\n+        if (!isValidEmail(email)) return send(res, 400, JSON.stringify({ error: \"invalid email\" }), \"application/json\");\n+        updateProfile(\"email\", email);\n+        return send(res, 200, JSON.stringify(profile), \"application/json\");\n+      }\n+      return send(res, 200, JSON.stringify(profile), \"application/json\");\n+    }\n     if (url.pathname === \"/\") return send(res, 303, \"\", \"text/plain\", { location: \"/checkout\" });\n     const page = pages[url.pathname];\n     if (!page) return send(res, 404, layout(\"Not found\", `<h1>Page not found</h1><p>We couldn't find ${esc(url.pathname)}.</p>`));\n",
+        "explanation": "The custom `isValidEmail` regex allowed only `[A-Za-z0-9._-]` in the local part and a single-label domain, so `+` sub-addresses and multi-level domains were rejected client-side before any request was made. I replaced it with a standards-oriented pattern that supports RFC-style local-part characters (including `+`) and multi-label domains, and made the Settings save actually POST and persist the value through a new `/api/settings` endpoint that revalidates server-side, with the client showing an error if the server rejects the save.",
+        "verified": true,
+        "summary": "tests pass; agent can no longer reproduce the bug",
+        "sandbox": {
+          "provider": "docker",
+          "before": {},
+          "after": {
+            "tests": {
+              "exitCode": 0,
+              "output": "TAP version 13\n# Subtest: emails with + or subdomains are valid; obvious junk isn't\nok 1 - emails with + or subdomains are valid; obvious junk isn't\n  ---\n  duration_ms: 16.279167\n  type: 'test'\n  ...\n1..1\n# tests 1\n# suites 0\n# pass 1\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 77.239083\n",
+              "durationMs": 366,
+              "timedOut": false
+            },
+            "agent": {
+              "reproduced": false,
+              "evidence": "Entered priya+alerts@example.com and clicked Save settings. The form saved successfully: no inline validation error appeared and a \"Settings saved ✓\" toast/confirmation was shown. The bug no longer reproduces.",
+              "steps": 3,
+              "trace": [
+                "{\"type\":\"type\",\"id\":6,\"text\":\"priya+alerts@example.com\"}",
+                "{\"type\":\"click\",\"id\":7}",
+                "{\"type\":\"done\",\"reproduced\":false,\"evidence\":\"Entered priya+alerts@example.com and clicked Save settings. The form saved successfully: no inline validation error appeared and a \\\"Settings saved ✓\\\" toast/confirmation was shown. The bug no longer reproduces.\"}"
+              ],
+              "tokens": {
+                "input": 12913,
+                "output": 147
+              }
+            }
+          },
+          "verified": true,
+          "summary": "tests pass; agent can no longer reproduce the bug"
+        }
+      }
+    },
+    {
+      "id": "cart-plus-two",
+      "title": "Quantity jumps by two",
+      "kind": "bug",
+      "analysis": {
+        "ms": 8576,
+        "tokens": {
+          "input": 3365,
+          "output": 543
+        },
+        "stepsOk": true,
+        "causeOk": true,
+        "securityOk": null,
+        "report": {
+          "title": "Cart quantity increments by 2 on a single click of \"Increase quantity\" (Trail runners goes 1 → 3, subtotal $120.00 → $360.00)",
+          "summary": "On http://localhost:4401/cart, clicking the \"Increase quantity\" (+) button once for the Trail runners row increases the displayed quantity from 1 to 3 instead of to 2. The subtotal correspondingly changes from $120.00 to $360.00 (3 × $120.00).",
+          "severity": "medium",
+          "steps": [
+            {
+              "t": 0,
+              "action": "Initial state of the cart page shows the \"Trail runners\" line item with quantity 1 and a Subtotal of $120.00."
+            },
+            {
+              "t": 0.1,
+              "action": "Click the blue \"+\" button labeled \"Increase quantity\" for the Trail runners item."
+            },
+            {
+              "t": 0.8,
+              "action": "After the single click, the quantity for Trail runners is shown as 3 and the Subtotal as $360.00. Bug reproduced."
+            }
+          ],
+          "expected": "One click of \"Increase quantity\" should change the Trail runners quantity from 1 to 2, with the subtotal updating to $240.00 (2 × $120.00).",
+          "actual": "One click of \"Increase quantity\" changes the quantity from 1 to 3, and the subtotal becomes $360.00 (3 × $120.00).",
+          "suspectedCause": "The quantity increment handler in the cart page likely applies the increment twice — e.g. an updateQuantity(+1) call executed both in the button's onClick handler and again in a parent/listener or via double event binding (double-registered handler, duplicated effect, or a loop that adds the step twice). No console errors or network requests were captured, so the doubling appears to be entirely client-side in the click handler. Check the \"Increase quantity\" button's click handler and any shared cart-line update callback for duplicate invocation, and confirm the state update uses a single +1 per event.",
+          "evidence": [
+            "Frame t=0.0s: quantity \"1\", Subtotal \"$120.00\"",
+            "Frame t=0.8s: quantity \"3\", Subtotal \"$360.00\"",
+            "ACTIONS: [0.1s] click button#plus \"Increase quantity\" — only one click recorded",
+            "CONSOLE: (none)",
+            "NETWORK: (none)"
+          ],
+          "security": [],
+          "layout": []
+        }
+      },
+      "agent": {
+        "ms": 4051,
+        "tokens": {
+          "input": 7820,
+          "output": 128
+        },
+        "steps": 2,
+        "reproducedClaim": true,
+        "verifiedOnPage": true,
+        "success": true,
+        "evidence": "Initial cart showed Trail runners quantity 1 with Subtotal $120.00. After a single click on the blue \"+\" (Increase quantity, #plus) button, the quantity displayed 3 and the Subtotal became $360.00 — matching the reported bug instead of the expected quantity 2 / $240.00.",
+        "trace": [
+          "{\"type\":\"click\",\"id\":7}",
+          "{\"type\":\"done\",\"reproduced\":true,\"evidence\":\"Initial cart showed Trail runners quantity 1 with Subtotal $120.00. After a single click on the blue \\\"+\\\" (Increase quantity, #plus) button, the quantity displayed 3 and the Subtotal became $360.00 — matching the reported bug instead of the expected quantity 2 / $240.00.\"}"
+        ]
+      },
+      "fix": {
+        "ms": 10366,
+        "tokens": {
+          "input": 13721,
+          "output": 548
+        },
+        "files": [
+          "public/js/lib/cart.js"
+        ],
+        "wholeRepo": true,
+        "diff": "===================================================================\n--- a/public/js/lib/cart.js\n+++ b/public/js/lib/cart.js\n@@ -3,7 +3,7 @@\n export const MAX_QUANTITY = 10;\n \n export function nextQuantity(q) {\n-  return Math.min(MAX_QUANTITY, q + 2);\n+  return Math.min(MAX_QUANTITY, q + 1);\n }\n \n export function previousQuantity(q) {\n",
+        "explanation": "The cart's \"+\" listener calls `nextQuantity` exactly once per click, but `nextQuantity` in `public/js/lib/cart.js` increments by 2 (`q + 2`), so a quantity of 1 becomes 3 and the subtotal becomes 3 × price. Changing the step to 1 makes one click yield 2 while preserving the max-quantity clamp.",
+        "verified": true,
+        "summary": "tests pass; agent can no longer reproduce the bug",
+        "sandbox": {
+          "provider": "docker",
+          "before": {},
+          "after": {
+            "tests": {
+              "exitCode": 0,
+              "output": "TAP version 13\n# Subtest: + adds one to the quantity\nok 1 - + adds one to the quantity\n  ---\n  duration_ms: 15.673708\n  type: 'test'\n  ...\n1..1\n# tests 1\n# suites 0\n# pass 1\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 90.794292\n",
+              "durationMs": 313,
+              "timedOut": false
+            },
+            "agent": {
+              "reproduced": false,
+              "evidence": "Initial state showed Trail runners quantity 1 and Subtotal $120.00. After one click on the blue \"+\" Increase quantity button, quantity showed 2 and Subtotal $240.00, matching the expected correct behavior. The bug did not reproduce.",
+              "steps": 2,
+              "trace": [
+                "{\"type\":\"click\",\"id\":7}",
+                "{\"type\":\"done\",\"reproduced\":false,\"evidence\":\"Initial state showed Trail runners quantity 1 and Subtotal $120.00. After one click on the blue \\\"+\\\" Increase quantity button, quantity showed 2 and Subtotal $240.00, matching the expected correct behavior. The bug did not reproduce.\"}"
+              ],
+              "tokens": {
+                "input": 7922,
+                "output": 122
+              }
+            }
+          },
+          "verified": true,
+          "summary": "tests pass; agent can no longer reproduce the bug"
+        }
+      }
+    },
+    {
+      "id": "checkout-overflow-mobile",
+      "title": "Checkout scrolls sideways on my phone",
+      "kind": "responsive",
+      "analysis": {
+        "ms": 20592,
+        "tokens": {
+          "input": 5916,
+          "output": 1572
+        },
+        "stepsOk": true,
+        "causeOk": true,
+        "securityOk": null,
+        "report": {
+          "title": "Checkout page scrolls horizontally on mobile; coupon row (476px) overflows 360px/390px viewports",
+          "summary": "At 360px and 390px widths, the checkout document is 476px wide, causing 116px and 86px of horizontal overflow respectively. The culprit is the coupon row (div.row.coupon-row), whose right edge extends to 476px and is clipped off-screen; the blue \"Apply coupon\" button is only partially visible (at 360px only its left edge is shown, at 390px only \"App\" is shown). The layout is correct from 768px upward, so this is a mobile-only CSS/responsive bug.",
+          "severity": "medium",
+          "steps": [
+            {
+              "t": 0,
+              "action": "Open /checkout at a 360px-wide viewport. The page renders with the header wrapped onto two lines (\"Acme Outfitters | Cart | Checkout | Profile\" / \"Settings | Orders | Sign out\"), but the coupon row is pushed beyond the right edge. The \"Apply coupon\" button is clipped, showing only its left rounded edge."
+            },
+            {
+              "t": 0,
+              "action": "Scroll the page horizontally: the content can be dragged 116px to the right, revealing the off-screen \"Apply coupon\" button while leaving a blank/empty band on the left of the page."
+            },
+            {
+              "t": 0,
+              "action": "Repeat at a 390px-wide viewport: the page is still 476px wide (86px overflow) and the \"Apply coupon\" button is still clipped (label shows \"App\" before being cut off). Same coupon-row overflow."
+            },
+            {
+              "t": 0,
+              "action": "Check wider viewports for comparison: at 768px, 1024px and 1440px the page width matches the viewport (no horizontal overflow) and the coupon row, input and button all fit inside the card."
+            }
+          ],
+          "expected": "At 360px and 390px the checkout content fits the viewport width with no horizontal scrolling; the full \"Apply coupon\" button is visible next to the Coupon / \"Enter code\" input.",
+          "actual": "Document width is 476px at both 360px and 390px viewports, producing 116px and 86px of horizontal scroll. The coupon row's right edge is at 476px, so the \"Apply coupon\" button is cut off by the viewport edge. The header nav also wraps to two lines on mobile.",
+          "suspectedCause": "The checkout card / .coupon-row has a fixed minimum width (or fixed-width flex children and/or a fixed padding) of ~476px, so it cannot shrink below that on narrow screens. Likely the row is a flex container without `min-width: 0` / `flex-wrap`, and the card container lacks `max-width: 100%` / `box-sizing: border-box`; alternatively the card has a hard-coded width (e.g. 420px + padding). Check the checkout CSS for the card container and `.row.coupon-row` rules and add a mobile breakpoint so the row stacks (label + input, then full-width button) and the card is capped at 100% width.",
+          "evidence": [
+            "360px viewport: page width 476px, horizontal overflow 116px; div.row.coupon-row right edge at 476px (viewport 360px)",
+            "390px viewport: page width 476px, horizontal overflow 86px; div.row.coupon-row right edge at 476px (viewport 390px)",
+            "768px / 1024px / 1440px viewports: page width equals viewport width, no overflow recorded",
+            "Screenshots at 360px and 390px show the blue \"Apply coupon\" button clipped by the right viewport edge (only its left edge / \"App\" visible)"
+          ],
+          "security": [],
+          "layout": [
+            {
+              "width": 360,
+              "element": "div.row.coupon-row",
+              "issue": "Row is wider than the viewport (page 476px vs viewport 360px, 116px overflow); the Apply coupon button is clipped off-screen.",
+              "severity": "high",
+              "suggestion": "Cap the checkout card at `max-width: 100%; box-sizing: border-box;` and let the coupon row shrink/wrap: `.coupon-row { display:flex; flex-wrap:wrap; gap:8px; }` with `.coupon-row > * { min-width:0; }` and a mobile rule making the Apply button `flex: 1 1 100%;`"
+            },
+            {
+              "width": 390,
+              "element": "div.row.coupon-row",
+              "issue": "Row is wider than the viewport (page 476px vs viewport 390px, 86px overflow); the Apply coupon button label is cut off.",
+              "severity": "high",
+              "suggestion": "Same as 360px: allow the coupon row to wrap and the button to take a full-width line under the input on narrow screens."
+            },
+            {
+              "width": 360,
+              "element": "header nav links (Cart, Checkout, Profile, Settings, Orders, Sign out)",
+              "issue": "Tap targets are only 21px tall (e.g. Cart 28x21, Checkout 62x21, Profile 41x21, Settings 53x21, Orders 44x21, Sign out 53x21), below the 44px minimum; nav wraps onto two lines on mobile.",
+              "severity": "medium",
+              "suggestion": "Give nav links `display:inline-block; padding:10px 8px;` (or `min-height:44px`) so they meet the recommended touch target size."
+            },
+            {
+              "width": 390,
+              "element": "header nav links (Cart, Checkout, Profile, Settings, Orders, Sign out)",
+              "issue": "Tap targets are only 21px tall, below the 44px minimum.",
+              "severity": "medium",
+              "suggestion": "Same as 360px: add vertical padding / min-height to nav links."
+            },
+            {
+              "width": 768,
+              "element": "header nav links",
+              "issue": "Tap targets are only 21px tall at 768px as well.",
+              "severity": "low",
+              "suggestion": "Increase link tap area (padding or min-height 44px) for touch devices."
+            },
+            {
+              "width": 1024,
+              "element": "header nav links",
+              "issue": "Tap targets are only 21px tall at 1024px as well.",
+              "severity": "low",
+              "suggestion": "Increase link tap area (padding or min-height 44px) for touch devices."
+            },
+            {
+              "width": 1440,
+              "element": "header nav links",
+              "issue": "Tap targets are only 21px tall at 1440px as well.",
+              "severity": "low",
+              "suggestion": "Increase link tap area (padding or min-height 44px) for touch devices."
+            }
+          ]
+        }
+      },
+      "fix": {
+        "ms": 57131,
+        "tokens": {
+          "input": 6529,
+          "output": 3150
+        },
+        "files": [
+          "public/styles.css"
+        ],
+        "wholeRepo": true,
+        "diff": "===================================================================\n--- a/public/styles.css\n+++ b/public/styles.css\n@@ -2,11 +2,11 @@\n body { font: 15px/1.5 system-ui, -apple-system, sans-serif; margin: 0; background: #f7f9fa; color: #262626; }\n header { background: #fff; border-bottom: 1px solid #e8e8e8; padding: 0 24px; min-height: 56px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 20px; }\n header b { margin-right: auto; }\n-header a { color: #262626; text-decoration: none; font-size: 14px; }\n+header a { color: #262626; text-decoration: none; font-size: 14px; display: inline-flex; align-items: center; min-height: 44px; padding: 0 8px; }\n main { max-width: 560px; margin: 32px auto; background: #fff; border: 1px solid #e8e8e8; padding: 28px; }\n h1 { font-size: 24px; margin: 0 0 16px; letter-spacing: -.02em; }\n .row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }\n-.coupon-row { min-width: 460px; }\n+.coupon-row { min-width: 0; }\n button { background: #0070d5; color: #fff; border: 0; border-radius: 999px; padding: 8px 18px; font: inherit; cursor: pointer; white-space: nowrap; }\n button.ghost { background: #fff; color: #262626; border: 1px solid #262626; }\n input { font: inherit; padding: 8px 10px; border: 1px solid #d9d9d9; border-radius: 4px; width: 240px; max-width: 100%; }\n@@ -16,4 +16,4 @@\n .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #262626; color: #fff; padding: 10px 18px; border-radius: 999px; display: none; }\n .qty { display: flex; gap: 10px; align-items: center; }\n .qty button { width: 32px; height: 32px; padding: 0; }\n-@media (max-width: 600px) { main { margin: 0; border: 0; padding: 20px 16px; } }\n+@media (max-width: 600px) { main { margin: 0; border: 0; padding: 20px 16px; } .coupon-row { flex-wrap: wrap; } .coupon-row > label { flex: 1 1 100%; min-width: 0; } .coupon-row > button { flex: 1 1 100%; } }\n",
+        "explanation": "The horizontal overflow came from the coupon row's hard-coded `min-width: 460px`, which forced its children beyond the card at mobile widths. Removing that floor and allowing the label and button to occupy full-width lines on small screens keeps the row within the card, while increasing the header links' height and padding fixes their undersized tap targets.",
+        "verified": true,
+        "summary": "0px horizontal overflow at 360px after the fix"
+      }
+    },
+    {
+      "id": "control-sign-out",
+      "title": "Sign out button does nothing",
+      "kind": "control",
+      "agent": {
+        "ms": 11686,
+        "tokens": {
+          "input": 12369,
+          "output": 598
+        },
+        "steps": 3,
+        "reproducedClaim": false,
+        "verifiedOnPage": false,
+        "success": true,
+        "evidence": "Clicking \"Sign out\" in the header on /checkout navigated to http://localhost:4401/login (Sign in page), so the session was ended. Navigating back to /checkout then redirected to /login?next=%2Fcheckout, confirming the user is signed out. The reported symptom (nothing happens, stay signed in) did not occur.",
+        "trace": [
+          "{\"type\":\"click\",\"id\":5}",
+          "{\"type\":\"navigate\",\"url\":\"http://localhost:4401/checkout\"}",
+          "{\"type\":\"done\",\"reproduced\":false,\"evidence\":\"Clicking \\\"Sign out\\\" in the header on /checkout navigated to http://localhost:4401/login (Sign in page), so the session was ended. Navigating back to /checkout then redirected to /login?next=%2Fcheckout, confirming the user is signed out. The reported symptom (nothing happens, stay signed in) did not occur.\"}"
+        ]
+      }
+    }
+  ]
+}

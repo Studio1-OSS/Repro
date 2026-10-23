@@ -1,0 +1,11 @@
+{
+  "name": "repro-bench-app",
+  "private": true,
+  "description": "Benchmark fixture for Repro: a small store with seeded bugs. Not a product.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test"
+  },
+  "engines": { "node": ">=20" }
+}

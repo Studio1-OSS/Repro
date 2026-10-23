@@ -1,0 +1,172 @@
+[
+  {
+    "id": "saucedemo-sort",
+    "site": "saucedemo.com (problem_user)",
+    "note": "Sorting products by price does nothing",
+    "reportOk": true,
+    "reportSeconds": 14.461,
+    "title": "Inventory sort dropdown resets to \"Name (A to Z)\" and price order is not applied",
+    "cause": "The sort control's onChange/value handling rejects the \"Price (low to high)\" option (likely the selected value does not match the option's expected value string or is being reset to the default \"az\"), so the component re-renders with the default sort and never applies price ordering. Check the sort dropdown's option values and the state reset/reducer logic that maps the selected value to the sort mode. No console errors were logged. The only failing requests are two Backtrace telemetry posts (TypeError: Failed to fetch), which are unrelated to sorting.",
+    "layout": [],
+    "agent": {
+      "reproduced": true,
+      "steps": 2,
+      "evidence": "Selected \"Price (low to high)\" in the Sort products dropdown (#product-sort-container); the control immediately reverted to \"Name (A to Z)\". The product list stayed in name order with Sauce Labs Backpack ($29.99) first and Sauce Labs Bike Light ($9.99) second, rather than sorting by ascending price.",
+      "seconds": 4.79
+    },
+    "ok": true
+  },
+  {
+    "id": "saucedemo-images",
+    "site": "saucedemo.com (problem_user)",
+    "note": "All the product pictures show the same dog",
+    "reportOk": true,
+    "reportSeconds": 13.289,
+    "title": "All product images on /inventory.html render the same dog photo instead of per-product images",
+    "cause": "The product image is not being resolved per product—likely the card component renders a single hardcoded/shared image URL (or a constant/fallback asset) instead of the item's own image URL from the inventory data. The Backtrace telemetry POSTs to events.backtrace.io failed with TypeError: Failed to fetch, so those requests provide no product/image data and are unrelated to the rendering defect; there are no console errors to indicate a load failure. Check the inventory card/product image rendering code (e.g., the src attribute for the product image element) and confirm it uses each product's own image URL field rather than a single shared constant or a fallback value applied to every item.",
+    "layout": [],
+    "agent": {
+      "reproduced": true,
+      "steps": 1,
+      "evidence": "On https://www.saucedemo.com/inventory.html, all visible product cards render the identical photo of a dog holding a green ball: Sauce Labs Backpack, Sauce Labs Bike Light, Sauce Labs Bolt T-Shirt, Sauce Labs Fleece Jacket, Sauce Labs Onesie, and Test.allTheThings() T-Shirt (Red). None show their expected distinct product photos.",
+      "seconds": 3.365
+    },
+    "ok": true
+  },
+  {
+    "id": "saucedemo-add-to-cart",
+    "site": "saucedemo.com (error_user)",
+    "note": "Add to cart throws an error on some products",
+    "reportOk": true,
+    "reportSeconds": 17.25,
+    "title": "Add to cart for Sauce Labs Bolt T-Shirt fails with uncaught error \"Failed to add item to the cart.\" on /inventory.html",
+    "cause": "The add-to-cart handler for the Bolt T-Shirt throws before updating cart state. The throw originates in function f at assets/index-DnLqFcJI.js:573:45831, called by a (573:46170), likely inside the React event handler that dispatches the cart mutation (yd at 15:126079). Check the product-cart mapping/add-to-cart reducer for product id \"sauce-labs-bolt-t-shirt\" — e.g. a lookup keyed by a mismatched id, a missing item/price field on the product object, or a cart-state update that throws when a second distinct item is added (the backpack succeeded first, so the failure may be the second-item path, not the product itself). The thrown error is caught only as an uncaught promise/handler error, so no user-facing message is rendered.",
+    "layout": [],
+    "agent": {
+      "reproduced": true,
+      "steps": 3,
+      "evidence": "After adding Sauce Labs Backpack (its button changed to \"Remove\" and cart badge showed 1), clicking #add-to-cart-sauce-labs-bolt-t-shirt produced an uncaught console error: \"Uncaught Error: Failed to add item to the cart.\" The Bolt T-Shirt button remained \"Add to cart\" and the cart badge remained at 1, matching the reported bug.",
+      "seconds": 6.774
+    },
+    "ok": true
+  },
+  {
+    "id": "the-internet-js-error",
+    "site": "the-internet.herokuapp.com",
+    "note": "This page throws an error as soon as it loads",
+    "reportOk": true,
+    "reportSeconds": 10.738,
+    "title": "Uncaught TypeError on load at /javascript_error: loadError reads 'xyz' of undefined",
+    "cause": "At javascript_error line 8, column 52 the function loadError accesses a property 'xyz' on an object that is undefined (e.g. a missing/undefined global or uninitialized variable). The inline onload attribute on line 12 invokes loadError() directly with no argument, so the referenced value is undefined when the property is read. Check the script around lines 8 and 12 of https://the-internet.herokuapp.com/javascript_error for an undefined variable/lookup and guard it (or pass the intended value) before dereferencing.",
+    "layout": [],
+    "agent": {
+      "reproduced": true,
+      "steps": 2,
+      "evidence": "Navigated to https://the-internet.herokuapp.com/javascript_error. The browser console logged: \"Uncaught TypeError: Cannot read properties of undefined (reading 'xyz')\". The page still displays: \"This page has a JavaScript error in the onload event. This is often a problem to using normal Javascript injection techniques.\"",
+      "seconds": 5.371
+    },
+    "ok": true
+  },
+  {
+    "id": "the-internet-broken-images",
+    "site": "the-internet.herokuapp.com",
+    "note": "Two of the images on this page are broken",
+    "reportOk": true,
+    "reportSeconds": 18.413,
+    "title": "Two images fail to load on /broken_images: /hjkl.jpg and /asdf.jpg",
+    "cause": "Not an application code defect. The page markup deliberately points two <img> elements at non-existent paths on the same origin (/hjkl.jpg and /asdf.jpg), so the requests 404/fail and Chrome renders its broken-image placeholder. The two identical console errors for /hjkl.jpg are consistent with two <img> tags sharing the same invalid src (e.g. a duplicated markup block). If this should be a real bug, check the /broken_images template/markup for the img src attributes and confirm whether hjkl.jpg/asdf.jpg assets are expected to be served by the server; the Optimizely event requests failing (298279967.log.optimizely.com → failed (Network error)) are third-party tracking and unrelated to the image loading.",
+    "layout": [],
+    "agent": {
+      "reproduced": true,
+      "steps": 1,
+      "evidence": "At 1280x800 the page shows the 'Broken Images' heading with three 120x90 slots: the first two (leftmost and middle) are empty bordered boxes displaying broken-image icons, while the third renders a grey avatar placeholder. This matches the reported state for /broken_images, where /hjkl.jpg and /asdf.jpg fail to load.",
+      "seconds": 5.368
+    },
+    "ok": true
+  },
+  {
+    "id": "saucedemo-visual-layout",
+    "site": "saucedemo.com (visual_user)",
+    "note": "Product cards look misaligned",
+    "reportOk": true,
+    "reportSeconds": 20.05,
+    "title": "Product cards overflow the viewport on narrow screens and misalign the cart and sort controls at 1280px",
+    "cause": "The inventory container and its children are using a fixed minimum width rather than a flexible width constrained by the viewport, so the content cannot shrink on narrow screens. The header's cart and sort-control containers appear to use absolute or overlapping positioning instead of reserving independent layout space. The burger menu's small tap target suggests its icon element is being measured instead of the full clickable button with padding.",
+    "layout": [
+      {
+        "width": 390,
+        "element": "div#inventory_container.inventory_container",
+        "issue": "Horizontal overflow: content is 395px wide inside a 390px box, clipping the product title/description area.",
+        "severity": "medium",
+        "suggestion": "Replace the fixed min-width on the inventory container with `max-width: 100%; box-sizing: border-box;` and allow the card's inner columns to flex-shrink (`min-width: 0` on flex children). Consider `width: 100vw; overflow-x: hidden;` on the page root as a safety net, but fix the underlying fixed width."
+      },
+      {
+        "width": 390,
+        "element": "button#add-to-cart-test.allthethings()-t-shirt-(red).btn.btn_primary 'Add to cart'",
+        "issue": "Element extends past the viewport: right edge at 395px in a 390px viewport, so the button is partially cut off.",
+        "severity": "medium",
+        "suggestion": "Apply `box-sizing: border-box; width: 100%; max-width: 100%;` to the card action button and ensure the parent card uses `width: 100%` with `min-width: 0`."
+      },
+      {
+        "width": 768,
+        "element": "div#inventory_container.inventory_container",
+        "issue": "Horizontal overflow: content is 772px wide inside a 768px box, clipping the product title/description area.",
+        "severity": "medium",
+        "suggestion": "Same as 390px: remove the fixed min-width, use `max-width: 100%; box-sizing: border-box;`, and let flex children shrink with `min-width: 0`."
+      },
+      {
+        "width": 768,
+        "element": "button#add-to-cart-test.allthethings()-t-shirt-(red).btn.btn_primary 'Add to cart'",
+        "issue": "Element extends past the viewport: right edge at 772px in a 768px viewport.",
+        "severity": "medium",
+        "suggestion": "Same as 390px: `box-sizing: border-box; width: 100%; max-width: 100%;` on the button and `min-width: 0` on the card's flex parent."
+      },
+      {
+        "width": 1280,
+        "element": "a.shopping_cart_link 'Cart, empty' vs select.product_sort_container 'Sort products'",
+        "issue": "The cart icon overlaps the sort dropdown by 40x11px, making both controls visually collide.",
+        "severity": "medium",
+        "suggestion": "Place the header's cart and sort controls in a flex row with `gap` and `align-items: center` instead of absolute positioning; give the sort container `margin-top` (or the header extra vertical space) so the cart icon sits above it without overlapping."
+      },
+      {
+        "width": 390,
+        "element": "button#react-burger-menu-btn 'Open Menu'",
+        "issue": "Tap target is only 20x20px, below the 44x44px minimum recommended for touch.",
+        "severity": "low",
+        "suggestion": "Increase the button's hit area to at least 44x44px via `min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center;` while keeping the icon visually the same size."
+      },
+      {
+        "width": 768,
+        "element": "button#react-burger-menu-btn 'Open Menu'",
+        "issue": "Tap target is only 20x20px, below the 44x44px minimum recommended for touch.",
+        "severity": "low",
+        "suggestion": "Same as 390px: enlarge the button's clickable area to at least 44x44px with padding or min-width/min-height."
+      },
+      {
+        "width": 1280,
+        "element": "button#react-burger-menu-btn 'Open Menu'",
+        "issue": "Tap target is only 20x20px, below the 44x44px minimum recommended for touch.",
+        "severity": "low",
+        "suggestion": "Same as 390px: enlarge the button's clickable area to at least 44x44px with padding or min-width/min-height."
+      }
+    ],
+    "ok": true
+  },
+  {
+    "id": "todomvc-control",
+    "site": "demo.playwright.dev/todomvc",
+    "note": "I can't add a new todo",
+    "reportOk": null,
+    "reportSeconds": 0,
+    "title": "I can't add a new todo",
+    "cause": "",
+    "layout": [],
+    "agent": {
+      "reproduced": false,
+      "steps": 2,
+      "evidence": "Typed \"Buy milk\" into the new-todo field and pressed Enter. The todo appeared in the list with \"1 item left\" and the All/Active/Completed filters became visible; the new-todo input was cleared. The reported bug did not occur.",
+      "seconds": 4.185
+    },
+    "ok": true
+  }
+]

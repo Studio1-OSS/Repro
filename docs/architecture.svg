@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" font-family="Open Sans, Helvetica, Arial, sans-serif">
+  <rect width="1200" height="700" fill="#ffffff"/>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 10 5 0 10z" fill="#262626"/>
+    </marker>
+  </defs>
+
+  <!-- Browser -->
+  <rect x="30" y="40" width="330" height="560" fill="#f5f5f5"/>
+  <text x="52" y="72" font-size="12" letter-spacing="1.2" fill="#be4e04">YOUR BROWSER</text>
+  <text x="52" y="102" font-size="21" fill="#262626" font-weight="600">Repro extension (MV3)</text>
+  <rect x="52" y="120" width="286" height="132" fill="#ffffff"/>
+  <text x="68" y="146" font-size="15" fill="#262626" font-weight="600">Capture</text>
+  <g font-size="13" fill="#595959">
+    <text x="68" y="170">console · fetch / XHR with bodies</text>
+    <text x="68" y="190">clicks · inputs · navigations</text>
+    <text x="68" y="210">perf · storage · DOM snapshot</text>
+    <text x="68" y="230">secrets redacted before upload</text>
+  </g>
+  <rect x="52" y="264" width="286" height="112" fill="#ffffff"/>
+  <text x="68" y="290" font-size="15" fill="#262626" font-weight="600">Record</text>
+  <g font-size="13" fill="#595959">
+    <text x="68" y="314">tab video · annotated screenshot</text>
+    <text x="68" y="334">instant replay (rrweb, opt-in)</text>
+    <text x="68" y="354">device sizes · 5-width layout scan</text>
+  </g>
+  <rect x="52" y="388" width="286" height="132" fill="#ffffff"/>
+  <text x="68" y="414" font-size="15" fill="#262626" font-weight="600">Reproduce / verify (agent)</text>
+  <g font-size="13" fill="#595959">
+    <text x="68" y="438">new window, already signed in</text>
+    <text x="68" y="458">chrome.debugger: screenshot + input</text>
+    <text x="68" y="478">numbered elements · select · click_at</text>
+    <text x="68" y="498">no passwords · asks before risky clicks</text>
+  </g>
+  <text x="52" y="556" font-size="13" fill="#262626">Popup · annotate page · bridge to the app</text>
+  <text x="52" y="578" font-size="13" fill="#8c8c8c">one build works with any Repro app</text>
+
+  <!-- Server -->
+  <rect x="440" y="40" width="380" height="430" fill="#262626"/>
+  <text x="462" y="72" font-size="12" letter-spacing="1.2" fill="#fa8c16">NEXT.JS 16 APP</text>
+  <g font-size="14" fill="#ffffff">
+    <rect x="462" y="88" width="336" height="60" fill="#383838"/>
+    <text x="478" y="112" font-weight="600">Reports</text>
+    <text x="478" y="133" fill="#b3b3b3" font-size="12">store · redact again · analyse (streams reasoning)</text>
+    <rect x="462" y="158" width="336" height="60" fill="#383838"/>
+    <text x="478" y="182" font-weight="600">Agent step</text>
+    <text x="478" y="203" fill="#b3b3b3" font-size="12">observation in → one action out · history in the DB</text>
+    <rect x="462" y="228" width="336" height="60" fill="#383838"/>
+    <text x="478" y="252" font-weight="600">Fix agent</text>
+    <text x="478" y="273" fill="#b3b3b3" font-size="12">reads the code · search/replace edits · diff</text>
+    <rect x="462" y="298" width="336" height="60" fill="#383838"/>
+    <text x="478" y="322" font-weight="600">Sandbox check</text>
+    <text x="478" y="343" fill="#b3b3b3" font-size="12">tests + agent, before and after the fix</text>
+    <rect x="462" y="368" width="336" height="84" fill="#383838"/>
+    <text x="478" y="392" font-weight="600">Report page · live runs (SSE)</text>
+    <text x="478" y="413" fill="#b3b3b3" font-size="12">player · DevTools tabs · HAR · fix panel</text>
+    <text x="478" y="433" fill="#b3b3b3" font-size="12">Better Auth · projects · daily AI credits</text>
+  </g>
+
+  <!-- Data -->
+  <rect x="440" y="500" width="182" height="100" fill="#f7f9fa"/>
+  <text x="458" y="528" font-size="12" letter-spacing="1.2" fill="#8c8c8c">DATABASE</text>
+  <text x="458" y="554" font-size="15" fill="#262626" font-weight="600">SQLite / Turso</text>
+  <text x="458" y="576" font-size="12" fill="#595959">reports · runs · fixes · projects</text>
+  <rect x="638" y="500" width="182" height="100" fill="#f7f9fa"/>
+  <text x="656" y="528" font-size="12" letter-spacing="1.2" fill="#8c8c8c">MEDIA</text>
+  <text x="656" y="554" font-size="15" fill="#262626" font-weight="600">Cloudinary</text>
+  <text x="656" y="576" font-size="12" fill="#595959">or local disk (.uploads/)</text>
+
+  <!-- Model -->
+  <rect x="900" y="40" width="270" height="220" fill="#0070d5"/>
+  <text x="920" y="72" font-size="12" letter-spacing="1.2" fill="#deeafd">NEBIUS TOKEN FACTORY</text>
+  <text x="920" y="104" font-size="20" fill="#ffffff" font-weight="600">MiniMax-M3.1-Flash</text>
+  <g font-size="13" fill="#ffffff">
+    <text x="920" y="136">vision: timestamped frames</text>
+    <text x="920" y="158">long context: all the logs, small repos</text>
+    <text x="920" y="180">tool calls: browser + code tools</text>
+    <text x="920" y="202">strict JSON + repair turn</text>
+    <text x="920" y="224">reasoning_effort per stage</text>
+  </g>
+
+  <!-- Code + sandbox -->
+  <rect x="900" y="300" width="270" height="140" fill="#f5f5f5"/>
+  <text x="920" y="328" font-size="12" letter-spacing="1.2" fill="#be4e04">YOUR CODE</text>
+  <text x="920" y="354" font-size="15" fill="#262626" font-weight="600">Local folder or GitHub</text>
+  <g font-size="13" fill="#595959">
+    <text x="920" y="378">read · apply · open a pull request</text>
+    <text x="920" y="400">tarball or copy → sandbox</text>
+  </g>
+  <rect x="900" y="470" width="270" height="130" fill="#f5f5f5"/>
+  <text x="920" y="498" font-size="12" letter-spacing="1.2" fill="#be4e04">SANDBOX (LOCAL, FREE)</text>
+  <text x="920" y="524" font-size="15" fill="#262626" font-weight="600">Docker node:22</text>
+  <g font-size="13" fill="#595959">
+    <text x="920" y="548">throwaway copy · 2 CPUs · 2 GB</text>
+    <text x="920" y="570">tests · app · Playwright agent</text>
+  </g>
+
+  <!-- Arrows -->
+  <g stroke="#262626" stroke-width="2" fill="none">
+    <path d="M360 186 H440" marker-end="url(#a)"/>
+    <path d="M360 454 H400 V188 H440" marker-start="url(#a)" marker-end="url(#a)"/>
+    <path d="M300 600 V640 H729 V602" marker-end="url(#a)"/>
+    <path d="M820 118 H900" marker-start="url(#a)" marker-end="url(#a)"/>
+    <path d="M820 188 C860 188 870 170 900 170" marker-start="url(#a)" marker-end="url(#a)"/>
+    <path d="M820 258 C860 258 870 240 900 240" marker-start="url(#a)" marker-end="url(#a)"/>
+    <path d="M820 258 C860 258 870 360 900 360" marker-end="url(#a)"/>
+    <path d="M820 328 C860 328 870 520 900 520" marker-end="url(#a)"/>
+    <path d="M531 470 V500" marker-end="url(#a)"/>
+  </g>
+  <g font-size="11" fill="#595959">
+    <text x="372" y="178">report bundle</text>
+    <text x="406" y="478">step loop</text>
+    <text x="384" y="634">media (direct upload)</text>
+    <text x="836" y="110">analysis</text>
+    <text x="836" y="160">agent turn</text>
+    <text x="836" y="232">fix turns</text>
+    <text x="836" y="310">read / apply / PR</text>
+    <text x="836" y="400">check</text>
+  </g>
+</svg>
